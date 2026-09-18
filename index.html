@@ -145,10 +145,9 @@
         let pathTimeout = null;
         let shoutInterval = null;
 
-        // 連續移動控制變數
         let activeDirection = null;
         let moveTimer = null;
-        const MOVE_INTERVAL = 120; // 毫秒：移動頻率（數值越小移動越快）
+        const MOVE_INTERVAL = 120;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
@@ -409,8 +408,14 @@
                     let bx = nx - bubbleW / 2;
                     let by = ny + bounce - cellH * 1.4 - bubbleH;
                     
+                    // 左右邊界保護
                     if (bx < 5) bx = 5;
                     if (bx + bubbleW > width - 5) bx = width - bubbleW - 5;
+
+                    // 上方邊界保護：如果太靠近頂部（超出畫布上方），就改顯示在 NPC 下方
+                    if (by < 5) {
+                        by = ny + bounce + cellH * 0.8;
+                    }
 
                     ctx.beginPath();
                     ctx.roundRect(bx, by, bubbleW, bubbleH, 6);
@@ -524,19 +529,15 @@
             victoryModal.classList.add('flex');
         }
 
-        // 開始持續移動
         function startContinuousMove(dx, dy) {
             if (!gameActive) return;
-            // 如果已經在往同一個方向走，就不重複觸發
             if (activeDirection && activeDirection.dx === dx && activeDirection.dy === dy) return;
 
             stopContinuousMove();
             activeDirection = { dx, dy };
 
-            // 先立刻走第一步
             movePlayer(dx, dy);
 
-            // 之後持續移動
             moveTimer = setInterval(() => {
                 if (!gameActive) {
                     stopContinuousMove();
@@ -546,7 +547,6 @@
             }, MOVE_INTERVAL);
         }
 
-        // 停止持續移動
         function stopContinuousMove() {
             if (moveTimer) {
                 clearInterval(moveTimer);
@@ -555,20 +555,17 @@
             activeDirection = null;
         }
 
-        // 綁定控制按鈕事件（支援滑鼠與觸控長按）
         const controlBtns = document.querySelectorAll('.control-btn');
         controlBtns.forEach(btn => {
             const dx = parseInt(btn.getAttribute('data-dx'));
             const dy = parseInt(btn.getAttribute('data-dy'));
 
-            // 觸控開始 / 滑鼠按下
             btn.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 startContinuousMove(dx, dy);
             });
         });
 
-        // 當手指或滑鼠離開按鈕、或在畫面上結束觸控時，停止移動
         window.addEventListener('pointerup', stopContinuousMove);
         window.addEventListener('pointercancel', stopContinuousMove);
 
