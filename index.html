@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="h-full overflow-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>找回失喪的靈魂</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(to bottom right, #fef3c7, #ffedd5, #fef9c3);
+        }
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-gentle {
+            animation: bounce-gentle 1s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between py-2 px-3">
+
+    <!-- 螢幕方向警告遮罩 -->
+    <div id="orientationWarning" class="fixed inset-0 bg-stone-900/90 z-50 hidden flex-col items-center justify-center p-6 text-center text-white backdrop-blur-md">
+        <div class="bg-amber-500/20 p-4 rounded-full mb-4 border border-amber-500/40">
+            <i data-lucide="smartphone" class="w-10 h-10 text-amber-400 animate-bounce"></i>
+        </div>
+        <h2 class="text-lg font-bold mb-2 text-amber-300">建議直向遊玩</h2>
+        <p class="text-xs text-stone-300 max-w-[240px] leading-relaxed">為了在 iPhone SE 等手機上獲得最佳體驗，請保持手機直立。</p>
+    </div>
+
+    <!-- 頂部導覽列 -->
+    <header class="w-full max-w-[500px] flex items-center justify-between bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-sm border border-amber-200/60 shrink-0 gap-2">
+        <div class="flex items-center space-x-2">
+            <div class="bg-amber-500 text-white p-1.5 rounded-xl shadow-inner">
+                <i data-lucide="compass" class="w-4 h-4"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-amber-900 text-xs leading-tight">找回失喪的靈魂</h1>
+                <div class="flex items-center space-x-1 text-[15px] text-amber-700">
+                    <span>失喪的靈魂:</span>
+                    <span id="npcCount" class="font-bold text-amber-600">4/4</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-1.5">
+            <div class="flex items-center bg-amber-100/70 p-0.5 rounded-xl border border-amber-200">
+                <button data-size="25" class="size-btn px-2.5 py-0.5 text-[15px] font-bold rounded-lg bg-white text-amber-900 shadow-sm transition">小</button>
+                <button data-size="37" class="size-btn px-2.5 py-0.5 text-[15px] font-bold rounded-lg text-amber-700 transition">大</button>
+            </div>
+
+            <button id="restartBtn" class="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white p-1.5 rounded-xl text-xs shadow transition flex items-center justify-center">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 遊戲主畫面（置中） -->
+    <main class="w-full max-w-[500px] flex-1 min-h-0 flex flex-col items-center justify-center relative my-auto">
+        <div id="gameContainer" class="relative bg-white p-2 rounded-3xl shadow-lg border-2 border-amber-200 w-full aspect-square max-w-[500px] flex items-center justify-center overflow-hidden">
+            <canvas id="mazeCanvas" class="w-full h-full rounded-2xl shadow-inner bg-stone-50 cursor-pointer"></canvas>
+            
+            <!-- 勝利對話框 -->
+            <div id="victoryModal" class="absolute inset-0 bg-stone-900/60 backdrop-blur-sm hidden flex-col items-center justify-center p-4 text-center transition-all duration-300 z-20">
+                <div class="bg-white rounded-3xl p-5 max-w-[260px] w-full shadow-2xl border border-amber-100 animate-bounce-gentle">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-inner">
+                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-inner text-2xl">
+    🕊️
+</div>
+                    </div>
+                    <h2 class="text-lg font-bold text-amber-900 mb-1">成了！</h2>
+                    <p class="text-[15px] text-gray-600 mb-3">找回所有失喪的靈魂～</p>
+                    <button id="modalRestartBtn" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-98 text-white font-bold py-2 px-4 rounded-xl shadow transition text-xs flex items-center justify-center space-x-1.5">
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                        <span>拯救更多靈魂</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 提示橫幅 -->
+            <div id="hintBanner" class="absolute top-2 left-1/2 -translate-x-1/2 bg-amber-900/90 text-white text-[20px] px-2.5 py-0.5 rounded-full shadow backdrop-blur-md opacity-0 transition-opacity duration-300 pointer-events-none flex items-center space-x-1 z-10 whitespace-nowrap">
+                <i data-lucide="info" class="w-3 h-3 text-amber-300"></i>
+                <span id="hintText">點擊角落 NPC 可顯示導航路徑</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部控制按鈕（置中） -->
+    <footer class="w-full max-w-[500px] flex flex-col items-center justify-center pb-1 shrink-0">
+        <div class="grid grid-cols-3 gap-1.5 w-32 h-24">
+            <div></div>
+            <button id="btnUp" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
+                <i data-lucide="chevron-up" class="w-5 h-5"></i>
+            </button>
+            <div></div>
+            <button id="btnLeft" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <button id="btnDown" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
+                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </button>
+            <button id="btnRight" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        const canvas = document.getElementById('mazeCanvas');
+        const ctx = canvas.getContext('2d');
+        const npcCountEl = document.getElementById('npcCount');
+        const victoryModal = document.getElementById('victoryModal');
+        const restartBtn = document.getElementById('restartBtn');
+        const modalRestartBtn = document.getElementById('modalRestartBtn');
+        const hintBanner = document.getElementById('hintBanner');
+        const hintText = document.getElementById('hintText');
+        const sizeBtns = document.querySelectorAll('.size-btn');
+        const orientationWarning = document.getElementById('orientationWarning');
+
+        let COLS = 25; 
+        let ROWS = 25;
+        let grid = []; 
+        let player = { x: 0, y: 0 };
+        let npcs = [];
+        let activePath = []; 
+        let selectedNpcId = null;
+        let gameActive = true;
+        let animFrameId = null;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'rescue') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        if (!audioCtx) return;
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.frequency.value = freq;
+                        g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                        o.start();
+                        o.stop(audioCtx.currentTime + 0.25);
+                    }, idx * 100);
+                });
+            }
+        }
+
+        function generateEllersMaze() {
+            if (COLS % 2 === 0) COLS += 1;
+            if (ROWS % 2 === 0) ROWS += 1;
+
+            const widthCells = Math.floor(COLS / 2);
+            const heightCells = Math.floor(ROWS / 2);
+
+            grid = Array(ROWS).fill(0).map(() => Array(COLS).fill(1));
+
+            let setCounter = 1;
+            let rowSets = Array(widthCells).fill(0);
+
+            for (let r = 0; r < heightCells; r++) {
+                const isLastRow = (r === heightCells - 1);
+
+                for (let c = 0; c < widthCells; c++) {
+                    if (rowSets[c] === 0) {
+                        rowSets[c] = setCounter++;
+                    }
+                    grid[r * 2 + 1][c * 2 + 1] = 0;
+                }
+
+                for (let c = 0; c < widthCells - 1; c++) {
+                    const currentSet = rowSets[c];
+                    const nextSet = rowSets[c + 1];
+
+                    if (currentSet !== nextSet) {
+                        if (isLastRow || Math.random() < 0.5) {
+                            grid[r * 2 + 1][c * 2 + 2] = 0;
+                            for (let sc = 0; sc < widthCells; sc++) {
+                                if (rowSets[sc] === nextSet) {
+                                    rowSets[sc] = currentSet;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (isLastRow) break;
+
+                let nextRowSets = Array(widthCells).fill(0);
+                let setGroups = {};
+                for (let c = 0; c < widthCells; c++) {
+                    const s = rowSets[c];
+                    if (!setGroups[s]) setGroups[s] = [];
+                    setGroups[s].push(c);
+                }
+
+                for (let s in setGroups) {
+                    const colsInSet = setGroups[s];
+                    let connectedCount = 0;
+                    
+                    colsInSet.forEach(c => {
+                        const dropVertical = (colsInSet.length === 1) || (Math.random() < 0.3) || (connectedCount === 0 && colsInSet.indexOf(c) === colsInSet.length - 1);
+                        if (dropVertical) {
+                            grid[r * 2 + 2][c * 2 + 1] = 0;
+                            nextRowSets[c] = rowSets[c];
+                            connectedCount++;
+                        }
+                    });
+                }
+
+                rowSets = nextRowSets;
+            }
+
+            const cx = Math.floor(COLS / 2);
+            const cy = Math.floor(ROWS / 2);
+            grid[cy][cx] = 0;
+
+            const directions = [
+                { x: cx + 1, y: cy },
+                { x: cx - 1, y: cy },
+                { x: cx, y: cy + 1 },
+                { x: cx, y: cy - 1 }
+            ];
+            const exit = directions[Math.floor(Math.random() * directions.length)];
+            if (exit.x >= 0 && exit.x < COLS && exit.y >= 0 && exit.y < ROWS) {
+                grid[exit.y][exit.x] = 0;
+            }
+
+            player = { x: cx, y: cy };
+            activePath = [];
+            selectedNpcId = null;
+
+            const cornerCoords = [
+                { x: 1, y: 1, id: 1 },
+                { x: COLS - 2, y: 1, id: 2 },
+                { x: 1, y: ROWS - 2, id: 3 },
+                { x: COLS - 2, y: ROWS - 2, id: 4 }
+            ];
+
+            npcs = cornerCoords.map(c => {
+                grid[c.y][c.x] = 0;
+                if (c.x === 1 && c.y === 1) {
+                    grid[1][2] = 0; grid[2][1] = 0;
+                } else if (c.x === COLS - 2 && c.y === 1) {
+                    grid[1][COLS - 3] = 0; grid[2][COLS - 2] = 0;
+                } else if (c.x === 1 && c.y === ROWS - 2) {
+                    grid[ROWS - 2][2] = 0; grid[ROWS - 3][1] = 0;
+                } else if (c.x === COLS - 2 && c.y === ROWS - 2) {
+                    grid[ROWS - 2][COLS - 3] = 0; grid[ROWS - 3][COLS - 2] = 0;
+                }
+                return {
+                    x: c.x,
+                    y: c.y,
+                    id: c.id,
+                    active: true,
+                    animOffset: Math.random() * Math.PI * 2
+                };
+            });
+
+            updateNpcCount();
+        }
+
+        function findShortestPath(startX, startY, targetX, targetY) {
+            let queue = [[ { x: startX, y: startY } ]];
+            let visited = Array(ROWS).fill(0).map(() => Array(COLS).fill(false));
+            visited[startY][startX] = true;
+
+            while (queue.length > 0) {
+                let path = queue.shift();
+                let curr = path[path.length - 1];
+
+                if (curr.x === targetX && curr.y === targetY) {
+                    return path;
+                }
+
+                const neighbors = [
+                    { x: curr.x, y: curr.y - 1 },
+                    { x: curr.x + 1, y: curr.y },
+                    { x: curr.x, y: curr.y + 1 },
+                    { x: curr.x - 1, y: curr.y }
+                ];
+
+                for (let n of neighbors) {
+                    if (n.x >= 0 && n.x < COLS && n.y >= 0 && n.y < ROWS) {
+                        if (grid[n.y][n.x] === 0 && !visited[n.y][n.x]) {
+                            visited[n.y][n.x] = true;
+                            queue.push([...path, n]);
+                        }
+                    }
+                }
+            }
+            return [];
+        }
+
+        function drawMaze() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const cellW = width / COLS;
+            const cellH = height / ROWS;
+
+            ctx.clearRect(0, 0, width, height);
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c] === 1) {
+                        ctx.fillStyle = '#292524';
+                        ctx.beginPath();
+                        ctx.roundRect(c * cellW, r * cellH, cellW + 0.5, cellH + 0.5, 2);
+                        ctx.fill();
+                    } else {
+                        ctx.fillStyle = '#fafaf9';
+                        ctx.fillRect(c * cellW, r * cellH, cellW, cellH);
+                    }
+                }
+            }
+
+            if (activePath.length > 0) {
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
+                ctx.lineWidth = Math.max(cellW * 0.4, 3);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                for (let i = 0; i < activePath.length; i++) {
+                    let px = (activePath[i].x + 0.5) * cellW;
+                    let py = (activePath[i].y + 0.5) * cellH;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+
+            const time = Date.now() * 0.003;
+            npcs.forEach(npc => {
+                if (!npc.active) return;
+                let nx = (npc.x + 0.5) * cellW;
+                let ny = (npc.y + 0.5) * cellH;
+                let bounce = Math.sin(time + npc.animOffset) * 2;
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(nx, ny + bounce, cellW * 0.7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#78350f';
+                ctx.font = `${cellW * 0.7}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🐑', nx, ny + bounce);
+
+                if (selectedNpcId === npc.id) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 1.5;
+                    let bubbleW = Math.max(cellW * 3.2, 70);
+                    let bubbleH = Math.max(cellH * 0.9, 22);
+                    let bx = nx - bubbleW / 2;
+                    let by = ny + bounce - cellH * 1.4 - bubbleH;
+                    
+                    if (bx < 5) bx = 5;
+                    if (bx + bubbleW > width - 5) bx = width - bubbleW - 5;
+
+                    ctx.beginPath();
+                    ctx.roundRect(bx, by, bubbleW, bubbleH, 6);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#78350f';
+                    ctx.font = `bold ${Math.max(9, cellW * 0.28)}px 'Noto Sans TC', sans-serif`;
+                    ctx.fillText('我需要福音!', bx + bubbleW / 2, by + bubbleH / 2);
+                }
+            });
+
+            let px = (player.x + 0.5) * cellW;
+            let py = (player.y + 0.5) * cellH;
+
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.4)';
+            ctx.beginPath();
+            ctx.arc(px, py - cellW * 0.05, cellW * 0.75, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(px, py - cellW * 0.32, cellW * 0.22, cellW * 0.07, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(px, py + cellW * 0.1, cellW * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(px - cellW * 0.2, py - cellW * 0.05);
+            ctx.lineTo(px + cellW * 0.2, py + cellW * 0.25);
+            ctx.stroke();
+
+            ctx.fillStyle = '#b45309';
+            ctx.font = `${cellW * 1.7}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🧔', px, py + cellW * 0.05);
+        }
+
+        function movePlayer(dx, dy) {
+            if (!gameActive) return;
+            let newX = player.x + dx;
+            let newY = player.y + dy;
+
+            if (newX >= 0 && newX < COLS && newY >= 0 && newY < ROWS) {
+                if (grid[newY][newX] === 0) {
+                    player.x = newX;
+                    player.y = newY;
+                    playSound('click');
+
+                    if (selectedNpcId !== null) {
+                        let targetNpc = npcs.find(n => n.id === selectedNpcId);
+                        if (targetNpc && targetNpc.active) {
+                            activePath = findShortestPath(player.x, player.y, targetNpc.x, targetNpc.y);
+                        } else {
+                            activePath = [];
+                            selectedNpcId = null;
+                        }
+                    }
+
+                    npcs.forEach(npc => {
+                        if (npc.active && npc.x === player.x && npc.y === player.y) {
+                            npc.active = false;
+                            playSound('rescue');
+                            showFloatingNotification();
+                            updateNpcCount();
+
+                            if (selectedNpcId === npc.id) {
+                                activePath = [];
+                                selectedNpcId = null;
+                            }
+
+                            if (npcs.every(n => !n.active)) {
+                                triggerVictory();
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        function updateNpcCount() {
+            const remaining = npcs.filter(n => n.active).length;
+            npcCountEl.textContent = `${remaining}/4`;
+        }
+
+        function showFloatingNotification() {
+            hintBanner.style.opacity = '1';
+            hintText.textContent = `一個靈魂得救了`;
+            setTimeout(() => {
+                hintBanner.style.opacity = '0';
+            }, 1800);
+        }
+
+        function triggerVictory() {
+            gameActive = false;
+            playSound('win');
+            victoryModal.classList.remove('hidden');
+            victoryModal.classList.add('flex');
+        }
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clickX = (e.clientX - rect.left) * scaleX;
+            const clickY = (e.clientY - rect.top) * scaleY;
+
+            const cellW = canvas.width / COLS;
+            const cellH = canvas.height / ROWS;
+
+            npcs.forEach(npc => {
+                if (!npc.active) return;
+                let nx = (npc.x + 0.5) * cellW;
+                let ny = (npc.y + 0.5) * cellH;
+                let dist = Math.hypot(clickX - nx, clickY - ny);
+
+                if (dist < cellW * 0.85) {
+                    selectedNpcId = npc.id;
+                    activePath = findShortestPath(player.x, player.y, npc.x, npc.y);
+                    playSound('click');
+                    
+                    hintBanner.style.opacity = '1';
+                    hintText.textContent = `已顯示通往角落靈魂的最短路徑！`;
+                    setTimeout(() => {
+                        hintBanner.style.opacity = '0';
+                    }, 2000);
+                }
+            });
+        });
+
+        sizeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                sizeBtns.forEach(b => {
+                    b.classList.remove('bg-white', 'text-amber-900', 'shadow-sm');
+                    b.classList.add('text-amber-700');
+                });
+                btn.classList.add('bg-white', 'text-amber-900', 'shadow-sm');
+                btn.classList.remove('text-amber-700');
+
+                const val = parseInt(btn.getAttribute('data-size'));
+                COLS = val;
+                ROWS = val;
+                initGame();
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'KeyW'].includes(e.code)) { movePlayer(0, -1); e.preventDefault(); }
+            if (['ArrowDown', 'KeyS'].includes(e.code)) { movePlayer(0, 1); e.preventDefault(); }
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) { movePlayer(-1, 0); e.preventDefault(); }
+            if (['ArrowRight', 'KeyD'].includes(e.code)) { movePlayer(1, 0); e.preventDefault(); }
+        });
+
+        document.getElementById('btnUp').addEventListener('click', () => movePlayer(0, -1));
+        document.getElementById('btnDown').addEventListener('click', () => movePlayer(0, 1));
+        document.getElementById('btnLeft').addEventListener('click', () => movePlayer(-1, 0));
+        document.getElementById('btnRight').addEventListener('click', () => movePlayer(1, 0));
+
+        function checkOrientation() {
+            if (window.innerWidth > window.innerHeight && window.innerHeight < 500) {
+                orientationWarning.classList.remove('hidden');
+                orientationWarning.classList.add('flex');
+            } else {
+                orientationWarning.classList.add('hidden');
+                orientationWarning.classList.remove('flex');
+            }
+        }
+
+        function calculateCanvasSize() {
+            const main = document.querySelector('main');
+            const rect = main.getBoundingClientRect();
+            return Math.floor(Math.min(rect.width, rect.height, 500));
+        }
+
+        function initGame() {
+            const size = calculateCanvasSize();
+            canvas.width = size;
+            canvas.height = size;
+
+            generateEllersMaze();
+            gameActive = true;
+            victoryModal.classList.add('hidden');
+            victoryModal.classList.remove('flex');
+        }
+
+        restartBtn.addEventListener('click', initGame);
+        modalRestartBtn.addEventListener('click', initGame);
+
+        function gameLoop() {
+            drawMaze();
+            animFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            checkOrientation();
+            initGame();
+            gameLoop();
+        };
+
+        window.addEventListener('resize', () => {
+            checkOrientation();
+            const size = calculateCanvasSize();
+            canvas.width = size;
+            canvas.height = size;
+        });
+    </script>
+</body>
+</html>
