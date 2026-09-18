@@ -54,7 +54,7 @@
                 <h1 class="font-bold text-amber-900 text-xs leading-tight">找回失喪的靈魂</h1>
                 <div class="flex items-center space-x-1 text-[15px] text-amber-700">
                     <span>失喪的靈魂:</span>
-                    <span id="npcCount" class="font-bold text-amber-600">4/4</span>
+                    <span id="npcCount" class="font-bold text-amber-600">4</span>
                 </div>
             </div>
         </div>
@@ -79,10 +79,8 @@
             <!-- 勝利對話框 -->
             <div id="victoryModal" class="absolute inset-0 bg-stone-900/60 backdrop-blur-sm hidden flex-col items-center justify-center p-4 text-center transition-all duration-300 z-20">
                 <div class="bg-white rounded-3xl p-5 max-w-[260px] w-full shadow-2xl border border-amber-100 animate-bounce-gentle">
-                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-inner">
-                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-inner text-2xl">
-    🕊️
-</div>
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-inner text-2xl">
+                        🕊️
                     </div>
                     <h2 class="text-lg font-bold text-amber-900 mb-1">成了！</h2>
                     <p class="text-[15px] text-gray-600 mb-3">找回所有失喪的靈魂～</p>
@@ -105,18 +103,18 @@
     <footer class="w-full max-w-[500px] flex flex-col items-center justify-center pb-1 shrink-0">
         <div class="grid grid-cols-3 gap-1.5 w-32 h-24">
             <div></div>
-            <button id="btnUp" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
-                <i data-lucide="chevron-up" class="w-5 h-5"></i>
+            <button id="btnUp" class="control-btn bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition" data-dx="0" data-dy="-1">
+                <i data-lucide="chevron-up" class="w-5 h-5 pointer-events-none"></i>
             </button>
             <div></div>
-            <button id="btnLeft" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
-                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            <button id="btnLeft" class="control-btn bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition" data-dx="-1" data-dy="0">
+                <i data-lucide="chevron-left" class="w-5 h-5 pointer-events-none"></i>
             </button>
-            <button id="btnDown" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
-                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            <button id="btnDown" class="control-btn bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition" data-dx="0" data-dy="1">
+                <i data-lucide="chevron-down" class="w-5 h-5 pointer-events-none"></i>
             </button>
-            <button id="btnRight" class="bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition">
-                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            <button id="btnRight" class="control-btn bg-white/95 hover:bg-amber-100 active:bg-amber-200 active:scale-95 text-amber-900 rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center transition" data-dx="1" data-dy="0">
+                <i data-lucide="chevron-right" class="w-5 h-5 pointer-events-none"></i>
             </button>
         </div>
     </footer>
@@ -144,6 +142,13 @@
         let selectedNpcId = null;
         let gameActive = true;
         let animFrameId = null;
+        let pathTimeout = null;
+        let shoutInterval = null;
+
+        // 連續移動控制變數
+        let activeDirection = null;
+        let moveTimer = null;
+        const MOVE_INTERVAL = 120; // 毫秒：移動頻率（數值越小移動越快）
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
@@ -259,24 +264,15 @@
                 rowSets = nextRowSets;
             }
 
-            const cx = Math.floor(COLS / 2);
-            const cy = Math.floor(ROWS / 2);
-            grid[cy][cx] = 0;
-
-            const directions = [
-                { x: cx + 1, y: cy },
-                { x: cx - 1, y: cy },
-                { x: cx, y: cy + 1 },
-                { x: cx, y: cy - 1 }
-            ];
-            const exit = directions[Math.floor(Math.random() * directions.length)];
-            if (exit.x >= 0 && exit.x < COLS && exit.y >= 0 && exit.y < ROWS) {
-                grid[exit.y][exit.x] = 0;
-            }
+            let cx = Math.floor(COLS / 2);
+            let cy = Math.floor(ROWS / 2);
+            if (cx % 2 === 0) cx += 1;
+            if (cy % 2 === 0) cy += 1;
 
             player = { x: cx, y: cy };
             activePath = [];
             selectedNpcId = null;
+            if (pathTimeout) clearTimeout(pathTimeout);
 
             const cornerCoords = [
                 { x: 1, y: 1, id: 1 },
@@ -286,26 +282,32 @@
             ];
 
             npcs = cornerCoords.map(c => {
-                grid[c.y][c.x] = 0;
-                if (c.x === 1 && c.y === 1) {
-                    grid[1][2] = 0; grid[2][1] = 0;
-                } else if (c.x === COLS - 2 && c.y === 1) {
-                    grid[1][COLS - 3] = 0; grid[2][COLS - 2] = 0;
-                } else if (c.x === 1 && c.y === ROWS - 2) {
-                    grid[ROWS - 2][2] = 0; grid[ROWS - 3][1] = 0;
-                } else if (c.x === COLS - 2 && c.y === ROWS - 2) {
-                    grid[ROWS - 2][COLS - 3] = 0; grid[ROWS - 3][COLS - 2] = 0;
-                }
                 return {
                     x: c.x,
                     y: c.y,
                     id: c.id,
                     active: true,
+                    isShouting: false,
                     animOffset: Math.random() * Math.PI * 2
                 };
             });
 
             updateNpcCount();
+            setupShoutTimer();
+        }
+
+        function setupShoutTimer() {
+            if (shoutInterval) clearInterval(shoutInterval);
+            shoutInterval = setInterval(() => {
+                if (!gameActive) return;
+                const activeNpcs = npcs.filter(n => n.active);
+                if (activeNpcs.length === 0) return;
+                const target = activeNpcs[Math.floor(Math.random() * activeNpcs.length)];
+                target.isShouting = true;
+                setTimeout(() => {
+                    target.isShouting = false;
+                }, 2000);
+            }, 3500);
         }
 
         function findShortestPath(startX, startY, targetX, targetY) {
@@ -398,7 +400,7 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillText('🐑', nx, ny + bounce);
 
-                if (selectedNpcId === npc.id) {
+                if (selectedNpcId === npc.id || npc.isShouting) {
                     ctx.fillStyle = '#ffffff';
                     ctx.strokeStyle = '#f59e0b';
                     ctx.lineWidth = 1.5;
@@ -488,6 +490,7 @@
                             if (selectedNpcId === npc.id) {
                                 activePath = [];
                                 selectedNpcId = null;
+                                if (pathTimeout) clearTimeout(pathTimeout);
                             }
 
                             if (npcs.every(n => !n.active)) {
@@ -501,7 +504,7 @@
 
         function updateNpcCount() {
             const remaining = npcs.filter(n => n.active).length;
-            npcCountEl.textContent = `${remaining}/4`;
+            npcCountEl.textContent = `${remaining}`;
         }
 
         function showFloatingNotification() {
@@ -514,10 +517,60 @@
 
         function triggerVictory() {
             gameActive = false;
+            stopContinuousMove();
+            if (shoutInterval) clearInterval(shoutInterval);
             playSound('win');
             victoryModal.classList.remove('hidden');
             victoryModal.classList.add('flex');
         }
+
+        // 開始持續移動
+        function startContinuousMove(dx, dy) {
+            if (!gameActive) return;
+            // 如果已經在往同一個方向走，就不重複觸發
+            if (activeDirection && activeDirection.dx === dx && activeDirection.dy === dy) return;
+
+            stopContinuousMove();
+            activeDirection = { dx, dy };
+
+            // 先立刻走第一步
+            movePlayer(dx, dy);
+
+            // 之後持續移動
+            moveTimer = setInterval(() => {
+                if (!gameActive) {
+                    stopContinuousMove();
+                    return;
+                }
+                movePlayer(dx, dy);
+            }, MOVE_INTERVAL);
+        }
+
+        // 停止持續移動
+        function stopContinuousMove() {
+            if (moveTimer) {
+                clearInterval(moveTimer);
+                moveTimer = null;
+            }
+            activeDirection = null;
+        }
+
+        // 綁定控制按鈕事件（支援滑鼠與觸控長按）
+        const controlBtns = document.querySelectorAll('.control-btn');
+        controlBtns.forEach(btn => {
+            const dx = parseInt(btn.getAttribute('data-dx'));
+            const dy = parseInt(btn.getAttribute('data-dy'));
+
+            // 觸控開始 / 滑鼠按下
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                startContinuousMove(dx, dy);
+            });
+        });
+
+        // 當手指或滑鼠離開按鈕、或在畫面上結束觸控時，停止移動
+        window.addEventListener('pointerup', stopContinuousMove);
+        window.addEventListener('pointercancel', stopContinuousMove);
 
         canvas.addEventListener('click', (e) => {
             if (!gameActive) return;
@@ -546,6 +599,12 @@
                     setTimeout(() => {
                         hintBanner.style.opacity = '0';
                     }, 2000);
+
+                    if (pathTimeout) clearTimeout(pathTimeout);
+                    pathTimeout = setTimeout(() => {
+                        activePath = [];
+                        selectedNpcId = null;
+                    }, 2000);
                 }
             });
         });
@@ -567,16 +626,17 @@
         });
 
         window.addEventListener('keydown', (e) => {
-            if (['ArrowUp', 'KeyW'].includes(e.code)) { movePlayer(0, -1); e.preventDefault(); }
-            if (['ArrowDown', 'KeyS'].includes(e.code)) { movePlayer(0, 1); e.preventDefault(); }
-            if (['ArrowLeft', 'KeyA'].includes(e.code)) { movePlayer(-1, 0); e.preventDefault(); }
-            if (['ArrowRight', 'KeyD'].includes(e.code)) { movePlayer(1, 0); e.preventDefault(); }
+            if (['ArrowUp', 'KeyW'].includes(e.code)) { startContinuousMove(0, -1); e.preventDefault(); }
+            if (['ArrowDown', 'KeyS'].includes(e.code)) { startContinuousMove(0, 1); e.preventDefault(); }
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) { startContinuousMove(-1, 0); e.preventDefault(); }
+            if (['ArrowRight', 'KeyD'].includes(e.code)) { startContinuousMove(1, 0); e.preventDefault(); }
         });
 
-        document.getElementById('btnUp').addEventListener('click', () => movePlayer(0, -1));
-        document.getElementById('btnDown').addEventListener('click', () => movePlayer(0, 1));
-        document.getElementById('btnLeft').addEventListener('click', () => movePlayer(-1, 0));
-        document.getElementById('btnRight').addEventListener('click', () => movePlayer(1, 0));
+        window.addEventListener('keyup', (e) => {
+            if (['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS', 'ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) {
+                stopContinuousMove();
+            }
+        });
 
         function checkOrientation() {
             if (window.innerWidth > window.innerHeight && window.innerHeight < 500) {
@@ -595,6 +655,7 @@
         }
 
         function initGame() {
+            stopContinuousMove();
             const size = calculateCanvasSize();
             canvas.width = size;
             canvas.height = size;
